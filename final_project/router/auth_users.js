@@ -66,24 +66,23 @@ regd_users.use("/auth/*", (req, res, next) => {
 
 // Route for deleting a book review
 regd_users.delete("/auth/review/:isbn", (req, res) => {
-  const { isbn } = req.params;
-  const { username } = req.user;  // The logged-in user's username
+  const isbn = req.params.isbn;
+  const username = req.user.username;
 
+  // Check if the book exists
   if (!books[isbn]) {
-    return res.status(404).json({ message: "Book not found." });
+    return res.status(404).json({ message: "Book not found" });
   }
 
-  const reviews = books[isbn].reviews;
-
-  // Check if the review exists for the logged-in user
-  if (!reviews[username]) {
-    return res.status(400).json({ message: "No review found for this book by the current user." });
+  // Check if the review exists for the current user
+  if (!books[isbn].reviews[username]) {
+    return res.status(404).json({ message: "Review not found for this book by the current user" });
   }
 
-  // Delete the review for the logged-in user
-  delete reviews[username];
+  // Delete the review
+  delete books[isbn].reviews[username];
 
-  return res.status(200).json({ message: "Review successfully deleted." });
+  return res.status(200).json({ message: "Review deleted successfully" });
 });
 
 // Export the router

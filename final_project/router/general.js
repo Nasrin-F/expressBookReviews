@@ -66,5 +66,42 @@ public_users.get('/review/:isbn', function (req, res) {
   }
 });
 
+// Add review to a book
+public_users.post('/review/:isbn', function (req, res) {
+  const isbn = req.params.isbn;
+  const username = req.body.username;
+  const review = req.body.review;
+
+  if (!books[isbn]) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+
+  if (!username || !review) {
+    return res.status(400).json({ message: "Username and review are required" });
+  }
+
+  books[isbn].reviews[username] = review;
+
+  return res.status(200).json({ message: "Review added successfully" });
+});
+
+// Delete review from a book
+public_users.delete('/review/:isbn', function (req, res) {
+  const isbn = req.params.isbn;
+  const username = req.body.username;
+
+  if (!books[isbn]) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+
+  if (!books[isbn].reviews[username]) {
+    return res.status(404).json({ message: "Review not found for this book by the user" });
+  }
+
+  delete books[isbn].reviews[username];
+
+  return res.status(200).json({ message: "Review deleted successfully" });
+});
+
 // Export the public routes
 module.exports.general = public_users;
