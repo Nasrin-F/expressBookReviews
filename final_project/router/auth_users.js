@@ -1,30 +1,92 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-let books = require("./booksdb.js");
+const books = require('./booksdb.js');  // Assuming this contains the books data
+
 const regd_users = express.Router();
 
-let users = [];
+let users = [
+  { username: "testuser", password: "testpassword" } // Add a test user for login
+];
 
-const isValid = (username)=>{ //returns boolean
-//write code to check is the username is valid
-}
+// Function to check if the username exists
+const isValid = (username) => {
+  return users.some(user => user.username === username);
+};
 
-const authenticatedUser = (username,password)=>{ //returns boolean
-//write code to check if username and password match the one we have in records.
-}
+// Function to authenticate user credentials
+const authenticatedUser = (username, password) => {
+  return users.some(user => user.username === username && user.password === password);
+};
 
-//only registered users can login
-regd_users.post("/login", (req,res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+// Only registered users can login
+regd_users.post("/login", (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ message: "Username and password required" });
+  }
+
+  if (!authenticatedUser(username, password)) {
+    return res.status(401).json({ message: "Invalid login. Check credentials." });
+  }
+
+  // Generate a JWT token when login is successful
+  const accessToken = jwt.sign(
+    { username: username },
+    'secret_key', // Replace this with a secure key in production
+    { expiresIn: '1h' } // Token expires in 1 hour
+  );
+
+  // Store the token in session (optional, depending on your use case)
+  req.session.authorization = { accessToken };
+
+  // Send the token back to the client
+  res.status(200).json({
+    message: "User successfully logged in",
+    token: accessToken
+  });
 });
 
-// Add a book review
-regd_users.put("/auth/review/:isbn", (req, res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+// JWT Authentication middleware to protect routes that require login
+regd_users.use("/auth/*", (req, res, next) => {
+  const token = req.session?.authorization?.accessToken || req.headers['authorization']?.split(' ')[1];
+
+  if (!token) {
+    return res.status(403).json({ message: "Access denied. No token provided." });
+  }
+
+  jwt.verify(token, 'secret_key', (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid token." });
+    }
+    req.user = user;
+    next();
+  });
 });
 
+// Route for deleting a book review
+regd_users.delete("/auth/review/:isbn", (req, res) => {
+  const { isbn } = req.params;
+  const { username } = req.user;  // The logged-in user's username
+
+  if (!books[isbn]) {
+    return res.status(404).json({ message: "Book not found." });
+  }
+
+  const reviews = books[isbn].reviews;
+
+  // Check if the review exists for the logged-in user
+  if (!reviews[username]) {
+    return res.status(400).json({ message: "No review found for this book by the current user." });
+  }
+
+  // Delete the review for the logged-in user
+  delete reviews[username];
+
+  return res.status(200).json({ message: "Review successfully deleted." });
+});
+
+// Export the router
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
 module.exports.users = users;
